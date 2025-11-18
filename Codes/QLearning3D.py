@@ -6,7 +6,7 @@ from math import pi
 from sklearn.preprocessing import MinMaxScaler
 from RRT import *
 import json
-from RRT_UR10e import *
+
 # finding Medians on the the x-y plane recursively  
 def collect_medians_of_splits(data, max_depth, depth=1, medians=None):
     
@@ -828,6 +828,9 @@ def is_within_depth_border_3D(zone_i, zone_j, x, y, z, delta):
         min(zone_i[1], zone_j[1]) <= y <= max(zone_i[4], zone_j[4])
     )
 
+def point_in_rect(obstacle, point, min_distance):
+    return np.linalg.norm(point - obstacle) < min_distance
+
 # def is_point_too_close_to_obstacles(point, obstacle_list, min_distance=5):
 #     radius= 1 #radius of obstacles
 #     for obstacle in obstacle_list:
@@ -837,9 +840,8 @@ def is_within_depth_border_3D(zone_i, zone_j, x, y, z, delta):
 #             return True
 #     return False
 def is_point_too_close_to_obstacles(point, obstacle_list, min_distance):
-    
     for obstacle in obstacle_list:
-        if obstacle.point_in_rect(point, min_distance):
+        if point_in_rect(obstacle, point, min_distance):
             return True
     return False
 
@@ -889,7 +891,7 @@ def assign_obstacles_to_zone(data, xmin, ymin, zmin, xmax, ymax, zmax):
     
     return obstacles_in_zone
 
-def simulate3D(zones,policy,data,start,startZone,goal,goalZone):
+def simulate3D(zones,policy,data,start,startZone,goal,goalZone, env, model, data_model, viewer):
     nexZone=int(policy[startZone])
     goalZone=int(goalZone)
     nexZone=int(policy[startZone])
@@ -908,7 +910,7 @@ def simulate3D(zones,policy,data,start,startZone,goal,goalZone):
         )
         SubGoal= generate_safe_sub_goals(zones[int(nexZone)],obstacles,goal,m=10,min_distance=5,greedy=True)
         print("next Subgoal",SubGoal)
-        episodetime,newPath, done,iteration_count= RRT3D(start,SubGoal,zones[int(startZone)],zones[int(nexZone)],obstacles)  
+        episodetime, newPath, done, iteration_count = RRT3D(start,SubGoal,zones[int(startZone)],zones[int(nexZone)],obstacles, env, model, data_model, viewer)  
         if not done:
             return T,path, 0,iteration_count
         if newPath is not None:
@@ -957,7 +959,7 @@ def simulate3D_Robot(zones,policy,obstacles,start,startZone,goal,goalZone):
         SubGoal= generate_safe_sub_goals_box(zones[int(nexZone)],obstacles,goal,m=10,min_distance=5,greedy=True)
         #print("next Subgoal",SubGoal)
         #print(f"start:{start},SubGoal:{SubGoal},zones:{zones[int(startZone)],zones[int(nexZone)]},obstacles:{obstacles}")
-        episodetime,newPath,joint_valuess, done= RRT3D_UR10e(start,SubGoal,zones[int(startZone)],zones[int(nexZone)],obstacles)  
+        episodetime,newPath,joint_valuess, done = RRT3D(start,SubGoal,zones[int(startZone)],zones[int(nexZone)],obstacles)  
         if not done:
             return T,path,joint_value_list, 0
         if newPath is not None:
@@ -971,7 +973,7 @@ def simulate3D_Robot(zones,policy,obstacles,start,startZone,goal,goalZone):
         joint_value_list +=[joint_valuess]
     if nexZone == goalZone:
         print("I reached the zone")
-        episodetime,newPath,joint_valuess, done =RRT3D_UR10e(start,goal,zones[startZone],zones[goalZone],obstacles)
+        episodetime,newPath,joint_valuess, done = RRT3D(start,goal,zones[startZone],zones[goalZone],obstacles)
         #print("path",newPath)
         T += episodetime
         path += [newPath]

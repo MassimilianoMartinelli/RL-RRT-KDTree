@@ -1,0 +1,75 @@
+
+import numpy as np
+import mujoco
+
+# UR10e joint names
+UR10E_JOINTS = [
+    "shoulder_pan_joint",
+    "shoulder_lift_joint",
+    "elbow_joint",
+    "wrist_1_joint",
+    "wrist_2_joint",
+    "wrist_3_joint"
+]
+
+def inverse_kinematics(target_pos, model, data_model, 
+                                 target_rot=np.eye(3), damping=1e-1, 
+                                 max_iter=50, tol=1e-4):
+    """
+    Iterative IK for UR10e that avoids going to zero angles.
+    Starts from current joint positions in data_model.
+    """
+    # Numeric IDs of joints
+    joint_ids = [int(model.joint(name).dofadr) for name in UR10E_JOINTS]
+    site_id = model.site("attachment_site").id
+
+    # Take current joint positions as initial guess
+    q = np.array([data_model.qpos[jid] for jid in joint_ids])
+    print("Initial q:", q)
+
+    for it in range(max_iter):
+        # Update data_model with current q
+        for i, jid in enumerate(joint_ids):
+            data_model.qpos[jid] = q[i]
+
+        mujoco.mj_fwdPosition(model, data_model)
+
+        # Current TCP pose
+        current_pos = data_model.site_xpos[site_id]
+        pos_err = target_pos - current_pos
+
+        # Orientation error
+        current_rot = data_model.site_xmat[site_id].reshape(3,3)
+        rot_err = 0.5 * (np.cross(current_rot[:,0], target_rot[:,0]) +
+                         np.cross(current_rot[:,1], target_rot[:,1]) +
+                         np.cross(current_rot[:,2], target_rot[:,2]))
+
+        # Task-space error
+        err = np.concatenate([pos_err, rot_err])
+
+        print(f"Iteration {it}:")
+        print("  Current pos:", current_pos)
+        print("  Positional error:", pos_err)
+        print("  Orientation error:", rot_err)
+        print("  Total error norm:", np.linalg.norm(err))
+
+        # Converged?
+        if np.linalg.norm(err) < tol:
+            print("Converged!")
+            break
+
+        # Jacobian pseudo-inverse step
+        Jp = np.zeros((3, model.nv))
+        Jr = np.zeros((3, model.nv))
+        mujoco.mj_jacSite(model, data_model, Jp, Jr, site_id)
+        J = np.vstack([Jp[:, joint_ids], Jr[:, joint_ids]])  # 6x6
+        J_pinv = J.T @ np.linalg.inv(J @ J.T + damping * np.eye(6))
+        dq = J_pinv @ err
+
+        # Update joint angles incrementally
+        q += 0.03*dq
+        print("  dq:", dq)
+        print("  Updated q:", q)
+        print("-"*40)
+
+    return q

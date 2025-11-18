@@ -3,6 +3,58 @@ import time
 np.random.seed(42)
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import mujoco
+import pyrender
+import numpy as np
+import gymnasium
+import skvideo.io
+from base64 import b64encode
+from IPython.display import HTML
+from gymnasium.envs.registration import *
+from mujoco import viewer
+import time
+
+path = '/home/roboticlab/Workspace_Massimiliano/RL-RRT-KDTree/ManiSkill-UR10e-main/ur10e.xml'
+env_id = 'Environment'
+model = mujoco.MjModel.from_xml_path(path)
+data_model = mujoco.MjData(model)
+
+
+register(
+    id='Environment',
+    entry_point='env:Environment',
+    kwargs={
+        'model_path': path
+    }
+)
+
+env = gymnasium.make(env_id, model_path=path, render_mode='rgb_array', camera_id=5)
+env.reset()
+# UR10E joint names e posizione "home"
+UR10E_JOINTS = [
+    "shoulder_pan_joint",
+    "shoulder_lift_joint",
+    "elbow_joint",
+    "wrist_1_joint",
+    "wrist_2_joint",
+    "wrist_3_joint"
+]
+home_qpos = [0 , -0.69 , 1.35 , -0.570 , 3.14 , 0]
+
+# Estrai gli indici numerici dei joint (dofadr)
+joint_ids = [int(model.joint(name.encode()).dofadr) for name in UR10E_JOINTS]
+
+# Assegna la configurazione "home"
+for i, jid in enumerate(joint_ids):
+    data_model.qpos[jid] = home_qpos[i]
+
+# Aggiorna la simulazione
+
+mujoco.mj_forward(model, data_model)
+mujoco.mj_step(model, data_model) 
+
+v = viewer.launch_passive(model, data_model)
+
 
 start=[0,0,0]
 goal=[199,199,199]
@@ -12,30 +64,40 @@ depthZ=1
 T_RRT=[]
 T_RL=[]
 SR=[]
-medians2D= collect_medians_of_splits(data, depth2D)
-print("medians 2D",medians2D)
-mediansZ= collect_medians_z(data,depthZ,depth=1,medians_z=None)
-print("medians 3D",mediansZ)
-AllMedians= medians2D +mediansZ
-startZone=Final_zone(start,medians2D,mediansZ,depth2D,depthZ)
-goalZone=Final_zone(goal,medians2D,mediansZ,depth2D,depthZ)
-print("startZone, goalZone",startZone,goalZone)
-zones= create_zone(data,depth2D,depthZ,boundry=200)
-adjacency_matrix= get_adjacency_matrix(zones,depth2D)
-#adjacency_matrix=ZoneConnectivity(zones, data, adjacency_matrix, gammaC=1)
-print("here is the adjacency matrix",adjacency_matrix)
-DofZ= get_DofZ(data,medians2D,mediansZ,depth2D,depthZ,zones)
-dist= distances(zones,goal,normalized=True)
-AllStatesActions= setReward(adjacency_matrix, DofZ, dist, depth2D)
+
+medians2D = collect_medians_of_splits(data, depth2D)
+print("medians 2D", medians2D)
+
+mediansZ = collect_medians_z(data, depthZ, depth=1, medians_z=None)
+print("medians 3D", mediansZ)
+
+# -------- FIX: CREATE ZONES FIRST --------
+zones = create_zone(data, depth2D, depthZ, boundry=200)
+
+# -------- FIX: PASS ZONES INTO Final_zone --------
+startZone = Final_zone(start, medians2D, mediansZ, depth2D, depthZ)
+goalZone  = Final_zone(goal,  medians2D, mediansZ, depth2D, depthZ)
+
+print("startZone, goalZone", startZone, goalZone)
+
+adjacency_matrix = get_adjacency_matrix(zones, depth2D)
+print("here is the adjacency matrix", adjacency_matrix)
+
+DofZ = get_DofZ(data, medians2D, mediansZ, depth2D, depthZ, zones)
+dist = distances(zones, goal, normalized=True)
+AllStatesActions = setReward(adjacency_matrix, DofZ, dist, depth2D)
+
 gamma=0.9
 episodes=2000
 epsilon=0.9
 alpha=0.1
+
 startRL=time.time()
 Q, policy = train(depth2D, episodes, alpha, gamma, epsilon, AllStatesActions, goalZone)
 endRL=time.time()
-policy = get_final_policy(depth2D,Q,policy)
-print("policy is here",policy)
+
+policy = get_final_policy(depth2D, Q, policy)
+print("policy is here", policy)
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
@@ -58,33 +120,32 @@ def check_success(path, goal, time, tolerance=1e-2):
     return 0
 
 for i in range(100):
-    Time, path,done,iteration_count = simulate3D(zones,policy,data,start,startZone,goal,goalZone)
+    Time, path, done, iteration_count = simulate3D(zones, policy, data, start, startZone, goal, goalZone,env, model, data_model, v)                         # aggiorna la finestra
+    env.render()
+    time.sleep(0.15)
+    print("iteration : ", i)
+    T_RRT.append(Time)
+    SR.append(check_success(path, goal, Time, tolerance=1e-2))
 
-    T_RRT +=[Time]
-    SR +=[check_success(path,goal,Time,tolerance=1e-2)]
-    # Extract path coordinates
-    x_coords = [point[0] for point in path]
-    y_coords = [point[1] for point in path]
-    z_coords = [point[2] for point in path]
+    x_coords = [p[0] for p in path]
+    y_coords = [p[1] for p in path]
+    z_coords = [p[2] for p in path]
     ax.plot(x_coords, y_coords, z_coords, label=f'Path {i+1}')
-
 
 ax.scatter(start[0], start[1], start[2], c='red', marker='o', label='Start')
 ax.scatter(goal[0], goal[1], goal[2], c='green', marker='x', label='Goal')
-# Set labels
+
 ax.set_xlabel('X')
 ax.set_ylabel('Y')
 ax.set_zlabel('Z')
 
-# Set title and legend
 ax.set_title('3D Path Planning')
 ax.legend()
 
-# Show plot
 plt.show()
 
 print(SR)
-print(f"succes rate is {SR.count(1)/len(SR)*100}%")
-print(f" RL Time",endRL-startRL)
-print(f" mean RRT Time",sum(T_RRT)/len(T_RRT))
+print(f"success rate is {SR.count(1)/len(SR)*100}%")
+print(f"RL Time", endRL-startRL)
+print(f"mean RRT Time", sum(T_RRT)/len(T_RRT))
 print(f"number of iteration is {iteration_count}")

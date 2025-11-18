@@ -3,15 +3,15 @@ import ompl.geometric as og
 from ompl import util as ou
 import numpy as np
 import time
-from environment.inverse_kinematics_ur10e import inverse_kinematics
+from inverse_kinematics_UR10e import *
 import mujoco
 from gymnasium.envs.registration import register
 import gymnasium
 
-def is_state_valid_3d(state, env):
+def is_state_valid_3d(state, env, path):
     for i in range(20):
         state = [state[0], state[1], state[2]]
-        act = inverse_kinematics(np.array(state), np.eye(3))
+        act = inverse_kinematics(np.array(state), path)
         env.step(act)
     contact_list = []
     for i in range(env.data.ncon):
@@ -50,11 +50,18 @@ def is_state_valid_rect(state, obstacles, min_distance=0):
     return True
 
 
-def is_state_valid_box(state, env):
+def is_state_valid_box(state, env, model, data, viewer):
+    env = env.unwrapped
     for i in range(20):
-        state = [state[0], state[1], state[2]]
-        act = inverse_kinematics(np.array(state), np.eye(3))
+        #state = [state[0], state[1], state[2]]
+        state = [0.5, 0.5 , 1.2]
+        act = inverse_kinematics(np.array(state), model, data)
         env.step(act)
+        mujoco.mj_step(model, data)        
+        mujoco.mj_forward(model, data)
+        viewer.sync()  
+        time.sleep(0.1)
+        #env.reset()
     contact_list = []
     for i in range(env.data.ncon):
         contact = env.data.contact[i]    
@@ -113,7 +120,7 @@ def RRT2D(start, subgoal, zone_start, zone_next, obstacles):
     else:
         return 10, [], 0,iteration_count  # Return the max time if not solved   
 
-def RRT3D(start, subgoal, zone_start, zone_next, obstacles, env):
+def RRT3D(start, subgoal, zone_start, zone_next, obstacles, env, model, data, viewer):
     space = ob.RealVectorStateSpace(3)
     
     lower_bound = [min(zone_start[0], zone_next[0]), min(zone_start[1], zone_next[1]), min(zone_start[2], zone_next[2])]
@@ -130,7 +137,7 @@ def RRT3D(start, subgoal, zone_start, zone_next, obstacles, env):
     space.setBounds(bounds)
     
     si = ob.SpaceInformation(space)
-    si.setStateValidityChecker(ob.StateValidityCheckerFn(lambda state: is_state_valid_box(state, env)))
+    si.setStateValidityChecker(ob.StateValidityCheckerFn(lambda state: is_state_valid_box(state, env, model, data, viewer)))
     
     start_state = ob.State(space)
     start_state()[0] = start[0]
