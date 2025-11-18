@@ -894,10 +894,12 @@ def assign_obstacles_to_zone(data, xmin, ymin, zmin, xmax, ymax, zmax):
 def simulate3D(zones,policy,data,start,startZone,goal,goalZone, env, model, data_model, viewer):
     nexZone=int(policy[startZone])
     goalZone=int(goalZone)
+    print("goalzone is : ", goalZone)
     nexZone=int(policy[startZone])
     T=0
     path=[]
     while nexZone != goalZone:
+        print("sono prima dell'obstacle")
         #obstacles=assign_obstacles_to_zone(data,min(zones[startZone][0],zones[nexZone][0]),min(zones[startZone][1],zones[nexZone][1]),min(zones[startZone][2],zones[nexZone][2]),max(zones[startZone][0],zones[nexZone][0]),max(zones[startZone][1],zones[nexZone][1]),max(zones[startZone][2],zones[nexZone][2]))
         obstacles = assign_obstacles_to_zone(
             data,
@@ -909,6 +911,7 @@ def simulate3D(zones,policy,data,start,startZone,goal,goalZone, env, model, data
             float(max(zones[int(startZone)][5], zones[int(nexZone)][5]))
         )
         SubGoal= generate_safe_sub_goals(zones[int(nexZone)],obstacles,goal,m=10,min_distance=5,greedy=True)
+        SubGoal = SubGoal
         print("next Subgoal",SubGoal)
         episodetime, newPath, done, iteration_count = RRT3D(start,SubGoal,zones[int(startZone)],zones[int(nexZone)],obstacles, env, model, data_model, viewer)  
         if not done:
@@ -920,6 +923,7 @@ def simulate3D(zones,policy,data,start,startZone,goal,goalZone, env, model, data
         nexZone=int(policy[startZone])
         start= SubGoal
         T += episodetime
+        print("T is : ",T)
         path += newPath
 
     if nexZone == goalZone:
@@ -933,7 +937,7 @@ def simulate3D(zones,policy,data,start,startZone,goal,goalZone, env, model, data
             float(max(zones[int(startZone)][4], zones[int(nexZone)][4])),
             float(max(zones[int(startZone)][5], zones[int(nexZone)][5]))
         )
-        episodetime,newPath, done =RRT3D(start,goal,zones[startZone],zones[goalZone],obstacles)
+        episodetime,newPath, done =RRT3D(start,goal,zones[startZone],zones[goalZone],obstacles, env, model, data_model, viewer)
         T += episodetime
         path += newPath
         if not done:

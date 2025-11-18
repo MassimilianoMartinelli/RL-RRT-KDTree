@@ -14,11 +14,10 @@ from gymnasium.envs.registration import *
 from mujoco import viewer
 import time
 
-path = '/home/roboticlab/Workspace_Massimiliano/RL-RRT-KDTree/ManiSkill-UR10e-main/ur10e.xml'
+path = '/home/roboticlab/Workspace_Massimiliano/code/RL-RRT-KDTree/ManiSkill-UR10e-main/UR10E_Scenario2.xml'
 env_id = 'Environment'
 model = mujoco.MjModel.from_xml_path(path)
 data_model = mujoco.MjData(model)
-
 
 register(
     id='Environment',
@@ -39,7 +38,7 @@ UR10E_JOINTS = [
     "wrist_2_joint",
     "wrist_3_joint"
 ]
-home_qpos = [0 , -0.69 , 1.35 , -0.570 , 3.14 , 0]
+home_qpos = [0.01 , -0.88 , 1.73 , -0.570 , 3.14 , 0]
 
 # Estrai gli indici numerici dei joint (dofadr)
 joint_ids = [int(model.joint(name.encode()).dofadr) for name in UR10E_JOINTS]
@@ -55,12 +54,12 @@ mujoco.mj_step(model, data_model)
 
 v = viewer.launch_passive(model, data_model)
 
-
-start=[0,0,0]
-goal=[199,199,199]
-data = np.random.rand(200, 3) * 200
-depth2D=2
-depthZ=1
+time.sleep(5)
+start=[0.8 , 0.75 , 1.305]
+goal=[0.43 , 1.16 , 1.305]
+data = np.random.rand(400, 3) * 1.8
+depth2D=4
+depthZ=2
 T_RRT=[]
 T_RL=[]
 SR=[]
@@ -70,9 +69,8 @@ print("medians 2D", medians2D)
 
 mediansZ = collect_medians_z(data, depthZ, depth=1, medians_z=None)
 print("medians 3D", mediansZ)
-
 # -------- FIX: CREATE ZONES FIRST --------
-zones = create_zone(data, depth2D, depthZ, boundry=200)
+zones = create_zone(data, depth2D, depthZ, boundry=2)
 
 # -------- FIX: PASS ZONES INTO Final_zone --------
 startZone = Final_zone(start, medians2D, mediansZ, depth2D, depthZ)

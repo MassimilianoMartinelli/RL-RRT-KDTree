@@ -53,14 +53,13 @@ def is_state_valid_rect(state, obstacles, min_distance=0):
 def is_state_valid_box(state, env, model, data, viewer):
     env = env.unwrapped
     for i in range(20):
-        #state = [state[0], state[1], state[2]]
-        state = [0.5, 0.5 , 1.2]
+        state = [state[0], state[1], state[2]]
         act = inverse_kinematics(np.array(state), model, data)
         env.step(act)
         mujoco.mj_step(model, data)        
         mujoco.mj_forward(model, data)
         viewer.sync()  
-        time.sleep(0.1)
+        time.sleep(0.3)
         #env.reset()
     contact_list = []
     for i in range(env.data.ncon):
@@ -125,7 +124,8 @@ def RRT3D(start, subgoal, zone_start, zone_next, obstacles, env, model, data, vi
     
     lower_bound = [min(zone_start[0], zone_next[0]), min(zone_start[1], zone_next[1]), min(zone_start[2], zone_next[2])]
     upper_bound = [max(zone_start[3], zone_next[3]), max(zone_start[4], zone_next[4]), max(zone_start[5], zone_next[5])]
-    
+    print("lowerbound : ",lower_bound)
+    print("upper_bound",upper_bound)
     bounds = ob.RealVectorBounds(3)
     bounds.setLow(0, lower_bound[0])
     bounds.setLow(1, lower_bound[1])
@@ -143,15 +143,13 @@ def RRT3D(start, subgoal, zone_start, zone_next, obstacles, env, model, data, vi
     start_state()[0] = start[0]
     start_state()[1] = start[1]
     start_state()[2] = start[2]
-    
     goal_state = ob.State(space)
-    goal_state()[0] = subgoal[0]
-    goal_state()[1] = subgoal[1]
-    goal_state()[2] = subgoal[2]
-    
+    goal_state()[0] = subgoal[0]/100.0
+    goal_state()[1] = subgoal[1]/100.0
+    goal_state()[2] = subgoal[2]/100.0
+
     pdef = ob.ProblemDefinition(si)
     pdef.setStartAndGoalStates(start_state, goal_state)
-    
     planner = og.RRT(si)
     planner.setRange(3) 
     planner.setProblemDefinition(pdef)
