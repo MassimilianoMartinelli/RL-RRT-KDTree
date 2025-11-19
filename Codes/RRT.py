@@ -7,11 +7,18 @@ from inverse_kinematics_UR10e import *
 import mujoco
 from gymnasium.envs.registration import register
 import gymnasium
-
+UR10E_JOINTS = [
+    "shoulder_pan_joint",
+    "shoulder_lift_joint",
+    "elbow_joint",
+    "wrist_1_joint",
+    "wrist_2_joint",
+    "wrist_3_joint"
+]
 def is_state_valid_3d(state, env, path):
     for i in range(20):
         state = [state[0], state[1], state[2]]
-        act = inverse_kinematics(np.array(state), path)
+        act = ur10e.inverse_kinematics(np.array(state), path)
         env.step(act)
     contact_list = []
     for i in range(env.data.ncon):
@@ -52,14 +59,24 @@ def is_state_valid_rect(state, obstacles, min_distance=0):
 
 def is_state_valid_box(state, env, model, data, viewer):
     env = env.unwrapped
-    for i in range(20):
-        state = [state[0], state[1], state[2]]
-        act = inverse_kinematics(np.array(state), model, data)
+    state[2] = state[2]
+    print("states :", state[0],state[1],state[2])
+    for i in range(30):
+        state_T = np.array([
+            [1, 0, 0, state[0]],
+            [0, 1, 0, state[1]],
+            [0, 0, 1, state[2]],
+            [0, 0, 0, 1]
+        ], dtype=np.float64)
+        state = [state[0], state[1],state[2]]
+        act = invKine(state_T, model, data)
         env.step(act)
-        mujoco.mj_step(model, data)        
-        mujoco.mj_forward(model, data)
+        data.ctrl[:] = act
+        mujoco.mj_step(model,data)
+        mujoco.mj_fwdPosition(model, data)    
+        env.render()
         viewer.sync()  
-        time.sleep(0.3)
+        time.sleep(0.01)
         #env.reset()
     contact_list = []
     for i in range(env.data.ncon):
@@ -144,10 +161,10 @@ def RRT3D(start, subgoal, zone_start, zone_next, obstacles, env, model, data, vi
     start_state()[1] = start[1]
     start_state()[2] = start[2]
     goal_state = ob.State(space)
-    goal_state()[0] = subgoal[0]/100.0
-    goal_state()[1] = subgoal[1]/100.0
-    goal_state()[2] = subgoal[2]/100.0
-
+    goal_state()[0] = subgoal[0]
+    goal_state()[1] = subgoal[1]
+    goal_state()[2] = subgoal[2]
+    print("subgoal : ",subgoal[0],subgoal[1], subgoal[2])
     pdef = ob.ProblemDefinition(si)
     pdef.setStartAndGoalStates(start_state, goal_state)
     planner = og.RRT(si)
@@ -163,6 +180,7 @@ def RRT3D(start, subgoal, zone_start, zone_next, obstacles, env, model, data, vi
     if endRRT- startRRT <1.5:
         path = pdef.getSolutionPath()
         new_path = [(state[0], state[1], state[2]) for state in path.getStates()]
+        print("questo è il nuovo path : ",new_path)
         planning_time = endRRT-startRRT  # Get the planning time
         return planning_time, new_path, 1,iteration_count
     else:

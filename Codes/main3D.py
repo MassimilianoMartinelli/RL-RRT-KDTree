@@ -12,7 +12,6 @@ from base64 import b64encode
 from IPython.display import HTML
 from gymnasium.envs.registration import *
 from mujoco import viewer
-import time
 
 path = '/home/roboticlab/Workspace_Massimiliano/code/RL-RRT-KDTree/ManiSkill-UR10e-main/UR10E_Scenario2.xml'
 env_id = 'Environment'
@@ -49,16 +48,17 @@ for i, jid in enumerate(joint_ids):
 
 # Aggiorna la simulazione
 
+
+
 mujoco.mj_forward(model, data_model)
 mujoco.mj_step(model, data_model) 
 
 v = viewer.launch_passive(model, data_model)
-
 time.sleep(5)
-start=[0.8 , 0.75 , 1.305]
-goal=[0.43 , 1.16 , 1.305]
-data = np.random.rand(400, 3) * 1.8
-depth2D=4
+start=[0.0 , 0.75 , 1.305]
+goal=[0.43 , 1.16 , 1.505]
+data = np.random.rand(200, 3) * 1.7
+depth2D=3
 depthZ=2
 T_RRT=[]
 T_RL=[]
@@ -118,8 +118,7 @@ def check_success(path, goal, time, tolerance=1e-2):
     return 0
 
 for i in range(100):
-    Time, path, done, iteration_count = simulate3D(zones, policy, data, start, startZone, goal, goalZone,env, model, data_model, v)                         # aggiorna la finestra
-    env.render()
+    Time, path, done, iteration_count = simulate3D(zones, policy, data, start, startZone, goal, goalZone,env, model, data_model, v)   
     time.sleep(0.15)
     print("iteration : ", i)
     T_RRT.append(Time)
