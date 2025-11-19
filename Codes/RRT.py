@@ -69,8 +69,8 @@ def is_state_valid_box(state, env, model, data, viewer):
             [0, 0, 0, 1]
         ], dtype=np.float64)
         state = [state[0], state[1],state[2]]
-        act = invKine(state_T, model, data)
-        env.step(act)
+        act = inverse_kinematics(state, model, data)
+        #env.step(act)
         data.ctrl[:] = act
         mujoco.mj_step(model,data)
         mujoco.mj_fwdPosition(model, data)    
