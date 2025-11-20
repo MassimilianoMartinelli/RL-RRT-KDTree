@@ -910,7 +910,7 @@ def simulate3D(zones,policy,data,start,startZone,goal,goalZone, env, model, data
             float(max(zones[int(startZone)][4], zones[int(nexZone)][4])),
             float(max(zones[int(startZone)][5], zones[int(nexZone)][5]))
         )
-        SubGoal= generate_safe_sub_goals(zones[int(nexZone)],obstacles,goal,m=10,min_distance=0.05,greedy=True)
+        SubGoal= generate_safe_sub_goals(zones[int(nexZone)],obstacles,goal,m=10,min_distance=0.01,greedy=True)
         SubGoal = SubGoal
         print("next Subgoal",SubGoal)
         episodetime, newPath, done, iteration_count = RRT3D(start,SubGoal,zones[int(startZone)],zones[int(nexZone)],obstacles, env, model, data_model, viewer)  
@@ -937,7 +937,7 @@ def simulate3D(zones,policy,data,start,startZone,goal,goalZone, env, model, data
             float(max(zones[int(startZone)][4], zones[int(nexZone)][4])),
             float(max(zones[int(startZone)][5], zones[int(nexZone)][5]))
         )
-        episodetime,newPath, done =RRT3D(start,goal,zones[startZone],zones[goalZone],obstacles, env, model, data_model, viewer)
+        episodetime,newPath, done, iteration_count =RRT3D(start,goal,zones[startZone],zones[goalZone],obstacles, env, model, data_model, viewer)
         T += episodetime
         path += newPath
         if not done:

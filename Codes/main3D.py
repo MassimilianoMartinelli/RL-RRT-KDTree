@@ -13,7 +13,7 @@ from IPython.display import HTML
 from gymnasium.envs.registration import *
 from mujoco import viewer
 
-path = '/home/roboticlab/Workspace_Massimiliano/code/RL-RRT-KDTree/ManiSkill-UR10e-main/UR10E_Scenario2.xml'
+path = '/home/roboticlab/Workspace_Massimiliano/code/RL-RRT-KDTree/ManiSkill-UR10e-main/scene.xml'
 env_id = 'Environment'
 model = mujoco.MjModel.from_xml_path(path)
 data_model = mujoco.MjData(model)
@@ -37,7 +37,7 @@ UR10E_JOINTS = [
     "wrist_2_joint",
     "wrist_3_joint"
 ]
-home_qpos = [0.01 , -0.88 , 1.73 , -0.570 , 3.14 , 0]
+home_qpos = [0 , -0.69 , 1.35 , -0.570  , 3.14 , 0]
 
 # Estrai gli indici numerici dei joint (dofadr)
 joint_ids = [int(model.joint(name.encode()).dofadr) for name in UR10E_JOINTS]
@@ -55,9 +55,15 @@ mujoco.mj_step(model, data_model)
 
 v = viewer.launch_passive(model, data_model)
 time.sleep(5)
-start=[0.0 , 0.75 , 1.305]
-goal=[0.43 , 1.16 , 1.505]
-data = np.random.rand(200, 3) * 1.7
+start=[-0.07 , 0.91 , 1.105 ]
+goal=[0.43 , 0.5 , 1.305]
+n = 200
+
+x = (np.random.rand(n) - 0.5) * 1.4  # [-0.7, 0.7]
+y = (np.random.rand(n) - 0.5) * 1.4  # [-0.7, 0.7]
+z = np.random.rand(n) * 1.7           # [0, 1.7]
+
+data = np.stack([x, y, z], axis=1)
 depth2D=3
 depthZ=2
 T_RRT=[]
@@ -70,7 +76,7 @@ print("medians 2D", medians2D)
 mediansZ = collect_medians_z(data, depthZ, depth=1, medians_z=None)
 print("medians 3D", mediansZ)
 # -------- FIX: CREATE ZONES FIRST --------
-zones = create_zone(data, depth2D, depthZ, boundry=2)
+zones = create_zone(data, depth2D, depthZ, boundry=1.5)
 
 # -------- FIX: PASS ZONES INTO Final_zone --------
 startZone = Final_zone(start, medians2D, mediansZ, depth2D, depthZ)
@@ -117,7 +123,7 @@ def check_success(path, goal, time, tolerance=1e-2):
             return 1
     return 0
 
-for i in range(100):
+for i in range(1):
     Time, path, done, iteration_count = simulate3D(zones, policy, data, start, startZone, goal, goalZone,env, model, data_model, v)   
     time.sleep(0.15)
     print("iteration : ", i)

@@ -7,6 +7,7 @@ from inverse_kinematics_UR10e import *
 import mujoco
 from gymnasium.envs.registration import register
 import gymnasium
+from ikpy.chain import Chain
 UR10E_JOINTS = [
     "shoulder_pan_joint",
     "shoulder_lift_joint",
@@ -61,7 +62,9 @@ def is_state_valid_box(state, env, model, data, viewer):
     env = env.unwrapped
     state[2] = state[2]
     print("states :", state[0],state[1],state[2])
-    for i in range(30):
+    for i in range(20):
+
+        q_act = [data.qpos[0],data.qpos[1],data.qpos[2],data.qpos[3],data.qpos[4],data.qpos[5]]
         state_T = np.array([
             [1, 0, 0, state[0]],
             [0, 1, 0, state[1]],
@@ -69,14 +72,19 @@ def is_state_valid_box(state, env, model, data, viewer):
             [0, 0, 0, 1]
         ], dtype=np.float64)
         state = [state[0], state[1],state[2]]
-        act = inverse_kinematics(state, model, data)
-        #env.step(act)
+        act = inverse_kinematics_gradient(state,model,data)
+        print("act : ",act)
+        current_pos = data.site_xpos[model.site("attachment_site").id]
+        joint_ids = [int(model.joint(name).dofadr) for name in UR10E_JOINTS]
         data.ctrl[:] = act
-        mujoco.mj_step(model,data)
-        mujoco.mj_fwdPosition(model, data)    
-        env.render()
+        for i, jid in enumerate(joint_ids):
+          data.qpos[jid] = act[i]
+        #for i, jid in enumerate(joint_ids):
+        #    print("joint values : ",data.qpos[jid])
+        print("current pos : ", current_pos)
+        
         viewer.sync()  
-        time.sleep(0.01)
+        #time.sleep(0.01)
         #env.reset()
     contact_list = []
     for i in range(env.data.ncon):
