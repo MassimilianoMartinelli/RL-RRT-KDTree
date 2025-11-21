@@ -891,7 +891,7 @@ def assign_obstacles_to_zone(data, xmin, ymin, zmin, xmax, ymax, zmax):
     
     return obstacles_in_zone
 
-def simulate3D(zones,policy,data,start,startZone,goal,goalZone, env, model, data_model, viewer):
+def simulate3D(zones,policy,data,start,startZone,goal,goalZone, env, model, data_model, viewer,home_qpos):
     nexZone=int(policy[startZone])
     goalZone=int(goalZone)
     print("goalzone is : ", goalZone)
@@ -910,7 +910,7 @@ def simulate3D(zones,policy,data,start,startZone,goal,goalZone, env, model, data
             float(max(zones[int(startZone)][4], zones[int(nexZone)][4])),
             float(max(zones[int(startZone)][5], zones[int(nexZone)][5]))
         )
-        SubGoal= generate_safe_sub_goals(zones[int(nexZone)],obstacles,goal,m=10,min_distance=0.01,greedy=True)
+        SubGoal= generate_safe_sub_goals(zones[int(nexZone)],obstacles,goal,m=30,min_distance=0.05,greedy=True)
         SubGoal = SubGoal
         print("next Subgoal",SubGoal)
         episodetime, newPath, done, iteration_count = RRT3D(start,SubGoal,zones[int(startZone)],zones[int(nexZone)],obstacles, env, model, data_model, viewer)  
@@ -925,7 +925,6 @@ def simulate3D(zones,policy,data,start,startZone,goal,goalZone, env, model, data
         T += episodetime
         print("T is : ",T)
         path += newPath
-
     if nexZone == goalZone:
         #obstacles=assign_obstacles_to_zone(data,min(zones[startZone][0],zones[nexZone][0]),min(zones[startZone][1],zones[nexZone][1]),max(zones[startZone][0],zones[nexZone][0]),max(zones[startZone][1],zones[nexZone][1]))
         obstacles = assign_obstacles_to_zone(
@@ -944,6 +943,13 @@ def simulate3D(zones,policy,data,start,startZone,goal,goalZone, env, model, data
             return T,path, 0, iteration_count
     with open('path3D.txt', 'w') as file:
         json.dump(path, file)
+    joint_ids = [int(model.joint(name).dofadr) for name in UR10E_JOINTS]
+    for i, jid in enumerate(joint_ids):
+          data_model.qpos[jid] = home_qpos[i]
+    mujoco.mj_step(model,data_model)
+    viewer.sync()
+    print("path :",path)
+    path_moving(path,env,model,data_model,viewer)
     return T, newPath, 1, iteration_count
 
 

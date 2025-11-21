@@ -16,24 +16,20 @@ UR10E_JOINTS = [
     "wrist_2_joint",
     "wrist_3_joint"
 ]
-def is_state_valid_3d(state, env, path):
-    for i in range(20):
-        state = [state[0], state[1], state[2]]
-        act = ur10e.inverse_kinematics(np.array(state), path)
-        env.step(act)
-    contact_list = []
-    for i in range(env.data.ncon):
-        contact = env.data.contact[i]    
-        geom1 = contact.geom1
-        geom2 = contact.geom2
-        geom1_name = env.model.geom(geom1).name
-        geom2_name = env.model.geom(geom2).name
-        contact_list.append((geom1_name, geom2_name))
-    if len(contact_list) == 0:
-        return True
-    else:
-        return False
-
+def is_state_valid_3d(state, env, model, data,viewer):
+    for point in state[1:]:
+        print("state is : ",point)
+        for i in range(100):
+            x, y, z = point
+            path =[x,y,z]
+            if i == 0 :
+                act = inverse_kinematics_gradient_2(path, model , data)
+            data.ctrl[:] = act
+            mujoco.mj_step(model,data)
+            viewer.sync()  
+            time.sleep(0.05)
+    current_pos = data.site_xpos[model.site("attachment_site").id]
+    print("ee current pos : ", current_pos)
 # def is_state_valid(state, obstacles, radius=1):
 #     for (ox, oy) in obstacles:
 #         distance = np.linalg.norm([state[0] - ox, state[1] - oy])
@@ -58,11 +54,11 @@ def is_state_valid_rect(state, obstacles, min_distance=0):
     return True
 
 
-def is_state_valid_box(state, env, model, data, viewer):
+def is_state_valid_box(state, env, model, data,viewer):
     env = env.unwrapped
     state[2] = state[2]
     print("states :", state[0],state[1],state[2])
-    for i in range(20):
+    for i in range(1):
 
         q_act = [data.qpos[0],data.qpos[1],data.qpos[2],data.qpos[3],data.qpos[4],data.qpos[5]]
         state_T = np.array([
@@ -76,14 +72,13 @@ def is_state_valid_box(state, env, model, data, viewer):
         print("act : ",act)
         current_pos = data.site_xpos[model.site("attachment_site").id]
         joint_ids = [int(model.joint(name).dofadr) for name in UR10E_JOINTS]
-        data.ctrl[:] = act
+        #data.ctrl[:] = act
         for i, jid in enumerate(joint_ids):
           data.qpos[jid] = act[i]
         #for i, jid in enumerate(joint_ids):
         #    print("joint values : ",data.qpos[jid])
-        print("current pos : ", current_pos)
-        
-        viewer.sync()  
+        #print("current pos : ", current_pos)
+        #viewer.sync()  
         #time.sleep(0.01)
         #env.reset()
     contact_list = []
@@ -193,3 +188,9 @@ def RRT3D(start, subgoal, zone_start, zone_next, obstacles, env, model, data, vi
         return planning_time, new_path, 1,iteration_count
     else:
         return 100, [], 0,iteration_count
+    
+    
+def path_moving(state,env , model, data,viewer):
+    is_state_valid_3d(state, env, model, data, viewer)
+      
+        

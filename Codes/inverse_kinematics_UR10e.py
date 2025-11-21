@@ -13,10 +13,7 @@
 # ***** lib
 import numpy as np
 from numpy import linalg
-import mujoco
 
-import cmath
-import math
 from math import cos as cos
 from math import sin as sin
 from math import atan2 as atan2
@@ -24,13 +21,9 @@ from math import acos as acos
 from math import asin as asin
 from math import sqrt as sqrt
 from math import pi as pi
-from scipy.optimize import minimize
-mat=np.matrix
-from sympy import symbols, cos, sin, pi, atan2, sqrt, acos, Matrix
-from spatialmath import SE3
+
 import numpy as np
 from mujoco import MjModel, MjData, mj_step
-from mujoco_tools import inverse_kinematics
 
 
 # UR10e joint names
@@ -64,7 +57,7 @@ def forward_kinematics(q, model, data, site_name="attachment_site"):
     return pos, rot
 
 def inverse_kinematics_gradient(goal_pos, model, data,
-                                q_init=None, step_size=0.3,
+                                q_init=None, step_size=0.7,
                                 alpha=1.0, tol=1e-2, max_iter=150):
     """
     Gradient descent IK using Jacobian Transpose.
@@ -103,6 +96,59 @@ def inverse_kinematics_gradient(goal_pos, model, data,
     print("error norm is :",error_norm)
     return q
 
+
+def forward_kinematics_2(q, model, data, site_name="attachment_site"):
+    """Return current end-effector position and rotation matrix."""
+    joint_ids = [int(model.joint(name).dofadr) for name in UR10E_JOINTS]
+    for i, jid in enumerate(joint_ids):
+        data.qpos[jid] = q[i]
+    mujoco.mj_forward(model, data)
+    site_id = model.site(site_name).id
+    pos = data.site_xpos[site_id]
+    rot = data.site_xmat[site_id].reshape(3,3)
+    return pos, rot
+
+def inverse_kinematics_gradient_2(goal_pos, model, data,
+                                q_init=None, step_size=0.7,
+                                alpha=1.0, tol=1e-2, max_iter=150):
+    """
+    Gradient descent IK using Jacobian Transpose.
+    """
+    joint_ids = [int(model.joint(name).dofadr) for name in UR10E_JOINTS]
+    
+    # Initial guess
+    if q_init is None:
+        q = np.array([data.qpos[jid] for jid in joint_ids])
+        q_0 = q
+    else:
+        q = np.array(q_init)
+
+    for it in range(max_iter):
+        # Current pose
+        current_pos, _ = forward_kinematics_2(q, model, data)
+        e = goal_pos - current_pos
+        error_norm = np.linalg.norm(e)
+        
+        if error_norm < tol:
+            print(f"Converged in {it} iterations, error {error_norm}")
+            break
+
+        # Jacobian
+        Jp = np.zeros((3, model.nv))
+        Jr = np.zeros((3, model.nv))
+        site_id = model.site("attachment_site").id
+        mujoco.mj_jacSite(model, data, Jp, Jr, site_id)
+        J = Jp[:, joint_ids]
+
+        # Gradient descent update
+        dq = alpha * J.T @ e
+        q += step_size * dq
+
+        # Clamp to joint limits
+        q = check_joint_limits(q, model)
+    for i, jid in enumerate(joint_ids):
+        data.qpos[jid] = q_0[i]
+    return q
 #
 #
 #   HOLD VERSION!!!

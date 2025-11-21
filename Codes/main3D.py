@@ -13,7 +13,7 @@ from IPython.display import HTML
 from gymnasium.envs.registration import *
 from mujoco import viewer
 
-path = '/home/roboticlab/Workspace_Massimiliano/code/RL-RRT-KDTree/ManiSkill-UR10e-main/scene.xml'
+path = '/home/roboticlab/Workspace_Massimiliano/code/RL-RRT-KDTree/ManiSkill-UR10e-main/ur10e.xml'
 env_id = 'Environment'
 model = mujoco.MjModel.from_xml_path(path)
 data_model = mujoco.MjData(model)
@@ -56,7 +56,7 @@ mujoco.mj_step(model, data_model)
 v = viewer.launch_passive(model, data_model)
 time.sleep(5)
 start=[-0.07 , 0.91 , 1.105 ]
-goal=[0.43 , 0.5 , 1.305]
+goal=[0.43 , 1.16 , 1.505]
 n = 200
 
 x = (np.random.rand(n) - 0.5) * 1.4  # [-0.7, 0.7]
@@ -124,7 +124,7 @@ def check_success(path, goal, time, tolerance=1e-2):
     return 0
 
 for i in range(1):
-    Time, path, done, iteration_count = simulate3D(zones, policy, data, start, startZone, goal, goalZone,env, model, data_model, v)   
+    Time, path, done, iteration_count = simulate3D(zones, policy, data, start, startZone, goal, goalZone,env, model, data_model, v,home_qpos)   
     time.sleep(0.15)
     print("iteration : ", i)
     T_RRT.append(Time)
