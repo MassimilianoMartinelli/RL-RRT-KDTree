@@ -16,24 +16,37 @@ UR10E_JOINTS = [
     "wrist_2_joint",
     "wrist_3_joint"
 ]
-def is_state_valid_3d(state, env, model, data,viewer):
-    for point in state[1:]:
+def is_state_valid_3d(state, env, model, data, viewer):
+    for point in state:
         joint_ids = [int(model.joint(name).dofadr) for name in UR10E_JOINTS]
-        
-        print("target : ",point)
-        q_0 =np.array([data.qpos[jid] for jid in joint_ids])
-        for i in range(70):
-            x, y, z = point
-            path =[x,y,z]
-            if i == 0 :
-                act = inverse_kinematics_gradient_2(path, model , data)
-                for i, jid in enumerate(joint_ids):
-                    data.qpos[jid] = q_0[i]
+
+        print("target : ", point)
+        q_0 = np.array([data.qpos[jid] for jid in joint_ids])
+
+        # reset qpos
+        x, y, z = point
+        path = [x, y, z]
+
+        # equivalente a "if i == 0" → fatto una volta sola
+        act = inverse_kinematics_gradient(path, model, data)
+        for i, jid in enumerate(joint_ids):
+            data.qpos[jid] = q_0[i]
+        mujoco.mj_step(model, data)
+        # distanza iniziale
+        current_pos = data.site_xpos[model.site("attachment_site").id]
+        dist = np.linalg.norm(current_pos - np.array([x, y, z]))
+        print("dist : ",dist)
+        #------ SOSTITUISCE for i in range(70) ------
+        while dist > 0.05:
+
             data.ctrl[:] = act
-            mujoco.mj_step(model,data)
-            viewer.sync()  
+            mujoco.mj_step(model, data)
+            viewer.sync()
             time.sleep(0.05)
+
             current_pos = data.site_xpos[model.site("attachment_site").id]
+            dist = np.linalg.norm(current_pos - np.array([x, y, z]))
+            print("dist : ",dist)
             print("ee current pos : ", current_pos)
 
 
@@ -82,16 +95,18 @@ def is_state_valid_box(state, env, model, data,viewer):
         #time.sleep(0.01)
         #env.reset()
     contact_list = []
-    for i in range(env.data.ncon):
-        contact = env.data.contact[i]    
+    for i in range(data.ncon):
+        contact = data.contact[i]    
         geom1 = contact.geom1
         geom2 = contact.geom2
-        geom1_name = env.model.geom(geom1).name
-        geom2_name = env.model.geom(geom2).name
+        geom1_name = model.geom(geom1).name
+        geom2_name = model.geom(geom2).name
         contact_list.append((geom1_name, geom2_name))
     if len(contact_list) == 0:
+        print("there are  :", len(contact_list)," contacts")
         return True
     else:
+        print("there are  :", len(contact_list)," contacts")
         return False
 
 
@@ -123,7 +138,7 @@ def RRT2D(start, subgoal, zone_start, zone_next, obstacles):
     pdef.setStartAndGoalStates(start_state, goal_state)
     
     planner = og.RRT(si)
-    planner.setRange(12) 
+    planner.setRange(0.1) 
     planner.setProblemDefinition(pdef)
     planner.setup()
     startRRT=time.time()
@@ -171,16 +186,16 @@ def RRT3D(start, subgoal, zone_start, zone_next, obstacles, env, model, data, vi
     pdef = ob.ProblemDefinition(si)
     pdef.setStartAndGoalStates(start_state, goal_state)
     planner = og.RRT(si)
-    planner.setRange(3) 
+    planner.setRange(0.1) 
     planner.setProblemDefinition(pdef)
     planner.setup()
     startRRT=time.time()
     print("--------------")
-    solved = planner.solve(1.5)  # Allow 10 seconds to solve
+    solved = planner.solve(25.5)  # Allow 10 seconds to solve
     endRRT=time.time()
     iteration_count = 1
     print("endRRT-startRRT",endRRT-startRRT)
-    if endRRT- startRRT <1.5:
+    if endRRT- startRRT <250.0:
         path = pdef.getSolutionPath()
         new_path = [(state[0], state[1], state[2]) for state in path.getStates()]
         print("questo è il nuovo path : ",new_path)

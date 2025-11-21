@@ -863,7 +863,7 @@ def generate_safe_sub_goals_box(Z_next, obstacle_list, goal, m, min_distance=5,g
     
     return random.choice(safe_sub_goals)
 
-def generate_safe_sub_goals(Z_next, obstacle_list, goal, m, min_distance=0.05,greedy=True):
+def generate_safe_sub_goals(Z_next, obstacle_list, goal, m, min_distance=0.15,greedy=True):
     safe_sub_goals = []
     while len(safe_sub_goals) < m:
         candidate_point = (
@@ -910,14 +910,14 @@ def simulate3D(zones,policy,data,start,startZone,goal,goalZone, env, model, data
             float(max(zones[int(startZone)][4], zones[int(nexZone)][4])),
             float(max(zones[int(startZone)][5], zones[int(nexZone)][5]))
         )
-        SubGoal= generate_safe_sub_goals(zones[int(nexZone)],obstacles,goal,m=30,min_distance=0.05,greedy=True)
+        SubGoal= generate_safe_sub_goals(zones[int(nexZone)],obstacles,goal,m=30,min_distance=0.1,greedy=True)
         SubGoal = SubGoal
         print("next Subgoal",SubGoal)
         episodetime, newPath, done, iteration_count = RRT3D(start,SubGoal,zones[int(startZone)],zones[int(nexZone)],obstacles, env, model, data_model, viewer)  
         if not done:
             return T,path, 0,iteration_count
-        if newPath is not None:
-            path += [newPath]
+        #if newPath is not None:
+        #    path += [newPath]
         
         startZone=nexZone
         nexZone=int(policy[startZone])
