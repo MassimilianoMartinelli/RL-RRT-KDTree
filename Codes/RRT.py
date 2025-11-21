@@ -18,24 +18,24 @@ UR10E_JOINTS = [
 ]
 def is_state_valid_3d(state, env, model, data,viewer):
     for point in state[1:]:
-        print("state is : ",point)
-        for i in range(100):
+        joint_ids = [int(model.joint(name).dofadr) for name in UR10E_JOINTS]
+        
+        print("target : ",point)
+        q_0 =np.array([data.qpos[jid] for jid in joint_ids])
+        for i in range(70):
             x, y, z = point
             path =[x,y,z]
             if i == 0 :
                 act = inverse_kinematics_gradient_2(path, model , data)
+                for i, jid in enumerate(joint_ids):
+                    data.qpos[jid] = q_0[i]
             data.ctrl[:] = act
             mujoco.mj_step(model,data)
             viewer.sync()  
             time.sleep(0.05)
-    current_pos = data.site_xpos[model.site("attachment_site").id]
-    print("ee current pos : ", current_pos)
-# def is_state_valid(state, obstacles, radius=1):
-#     for (ox, oy) in obstacles:
-#         distance = np.linalg.norm([state[0] - ox, state[1] - oy])
-#         if distance < radius:  # Consider the radius of the obstacles
-#             return False
-#     return True
+            current_pos = data.site_xpos[model.site("attachment_site").id]
+            print("ee current pos : ", current_pos)
+
 
 def is_point_too_close_to_obstacles(point, obstacle_list, min_distance):
     

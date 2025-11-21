@@ -119,7 +119,6 @@ def inverse_kinematics_gradient_2(goal_pos, model, data,
     # Initial guess
     if q_init is None:
         q = np.array([data.qpos[jid] for jid in joint_ids])
-        q_0 = q
     else:
         q = np.array(q_init)
 
@@ -146,8 +145,7 @@ def inverse_kinematics_gradient_2(goal_pos, model, data,
 
         # Clamp to joint limits
         q = check_joint_limits(q, model)
-    for i, jid in enumerate(joint_ids):
-        data.qpos[jid] = q_0[i]
+    print("initial pos in IK : ",data.site_xpos[model.site("attachment_site").id])
     return q
 #
 #
